@@ -1272,15 +1272,21 @@ class DPOTrainer(Trainer):
         compute_loss_context_manager = torch.cuda.amp.autocast if self._peft_has_been_casted_to_bf16 else nullcontext
 
         with compute_loss_context_manager():
-            loss, metrics = self.get_batch_loss_metrics(model, inputs, train_eval="train")
+            # Unpack the inputs
+            chosen = inputs["chosen"]
+            rejected1 = inputs["rejected1"]
+            rejected2 = inputs["rejected2"]
+            rejected3 = inputs["rejected3"]
+
+            loss = self._compute_loss(chosen, rejected1, rejected2, rejected3)
 
         # Make sure to move the loss to the device the original accumulating loss is at back in the `Trainer` class:
         loss = loss.to(self.args.device)
         # force log the metrics
-        self.store_metrics(metrics, train_eval="train")
+        self.store_metrics({"loss": loss}, train_eval="train")
 
         if return_outputs:
-            return (loss, metrics)
+            return (loss, {"loss": loss})
         return loss
 
     def get_batch_samples(self, model, batch: Dict[str, torch.LongTensor]) -> Tuple[str, str]:
