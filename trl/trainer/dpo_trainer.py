@@ -643,7 +643,7 @@ class DPOTrainer(Trainer):
                     pad_value = padding_value
                 elif k.endswith("_attention_mask"):
                     pad_value = 0
-                if k == 'rejected1' :
+                if 'rejected1' in k :
                     concatenated_key = k.replace("rejected1", "concatenated")
                     concatenated_batch[concatenated_key] = torch.cat(
                         (
@@ -652,7 +652,7 @@ class DPOTrainer(Trainer):
                         ),
                         dim=0,
                     ).to(device=device)
-                elif k == 'rejected2' :
+                elif 'rejected2' in k :
                     concatenated_key = k.replace("rejected2", "concatenated")
                     concatenated_batch[concatenated_key] = torch.cat(
                         (
@@ -661,7 +661,7 @@ class DPOTrainer(Trainer):
                         ),
                         dim=0,
                     ).to(device=device)
-                elif k == 'rejected3' :
+                elif 'rejected3' in k :
                     concatenated_key = k.replace("rejected3", "concatenated")
                     concatenated_batch[concatenated_key] = torch.cat(
                         (
