@@ -633,8 +633,11 @@ class DPOTrainer(Trainer):
                 concatenated_key = k.replace("chosen", "concatenated")
                 print(concatenated_key)
                 concatenated_batch[concatenated_key] = pad_to_length(batch[k], max_length, pad_value=pad_value)
-        print(concatenated_batch)        
+        print('********')
+        print(batch)  
+        print('************')
         for k in batch:
+            print(k)
             if k.startswith("rejected") and isinstance(batch[k], torch.Tensor):
                 if "labels" in k or is_encoder_decoder:
                     pad_value = label_pad_token_id
