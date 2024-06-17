@@ -636,10 +636,11 @@ class DPOTrainer(Trainer):
                 concatenated_batch[concatenated_key1] = pad_to_length(batch[k], max_length, pad_value=pad_value)
                 concatenated_batch[concatenated_key2] = pad_to_length(batch[k], max_length, pad_value=pad_value)
                 concatenated_batch[concatenated_key3] = pad_to_length(batch[k], max_length, pad_value=pad_value)
-                              
+
+        print(concatenated_batch)
         for k in batch:
             if k.startswith("rejected") and isinstance(batch[k], torch.Tensor):
-                print(k)
+                
                 if "labels" in k or is_encoder_decoder:
                     pad_value = label_pad_token_id
                 elif k.endswith("_input_ids"):
