@@ -740,15 +740,14 @@ class DPOTrainer(Trainer):
         padding_value: int = 0,
         device: Optional[torch.device] = None,
     ) -> Dict[str, torch.LongTensor]:
-        print(batch)
-        print("chosen_labels :", batch['chosen_labels'])
+
         concatenated_batch = {}
 
         if is_encoder_decoder:
             max_length = max(batch["chosen_labels"].shape[1], batch["rejected1_labels"].shape[1], batch["rejected2_labels"].shape[1], batch["rejected3_labels"].shape[1])
         else:
             max_length = max(batch["chosen_input_ids"].shape[1], batch["rejected1_labels"].shape[1], batch["rejected2_labels"].shape[1], batch["rejected3_labels"].shape[1])
-        print("length", max_length)
+
         for k in batch:
             if k.startswith("chosen") and isinstance(batch[k], torch.Tensor):
                 if "labels" in k or is_encoder_decoder:
@@ -987,6 +986,7 @@ class DPOTrainer(Trainer):
         rejected_logps1 = all_logps1[len_chosen:]
         rejected_logps2 = all_logps2[len_chosen:]
         rejected_logps3 = all_logps3[len_chosen:]
+        print(rejected_logps1)
         rejected_logps = np.mean(rejected_logps1, rejected_logps2, rejected_logps3)
 
         chosen_logits = all_logits1[:len_chosen]
