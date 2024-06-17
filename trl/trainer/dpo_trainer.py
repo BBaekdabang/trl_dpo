@@ -985,11 +985,11 @@ class DPOTrainer(Trainer):
         rejected_logps1 = all_logps1[len_chosen:]
         rejected_logps2 = all_logps2[len_chosen:]
         rejected_logps3 = all_logps3[len_chosen:]
-        print(rejected_logps1[0])
-        print(rejected_logps2[0])
-        print(rejected_logps3[0])
+        print(np.array(rejected_logps1))
+        print(np.array(rejected_logps2))
+        print(np.array(rejected_logps3))
         
-        rejected_logps = torch.mean(rejected_logps1[0], rejected_logps2[0], rejected_logps3[0])
+        rejected_logps = torch.Tensor(np.mean(np.array(rejected_logps1), np.array(rejected_logps2), np.array(rejected_logps3)))
 
         chosen_logits = all_logits1[:len_chosen]
         rejected_logits1 = all_logits1[len_chosen:]
