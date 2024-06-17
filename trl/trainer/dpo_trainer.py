@@ -985,21 +985,23 @@ class DPOTrainer(Trainer):
         rejected_logps1 = all_logps1[len_chosen:]
         rejected_logps2 = all_logps2[len_chosen:]
         rejected_logps3 = all_logps3[len_chosen:]
-        print(rejected_logps1)
-        print(rejected_logps2)
-        print(rejected_logps3)
+
+        rejected_logp = [rejected_logps1, rejected_logps2, rejected_logps3]
+        stacked_tensors_logp = torch.stack(rejected_logp)
+        mean_tensor_logp = stacked_tensors_logp.mean(dim=0)
         
-        rejected_logps = torch.Tensor(np.mean(np.array(rejected_logps1.cpu()), np.array(rejected_logps2.cpu()), np.array(rejected_logps3.cpu())))
+        rejected_logps = mean_tensor_logp
 
         chosen_logits = all_logits1[:len_chosen]
         rejected_logits1 = all_logits1[len_chosen:]
         rejected_logits2 = all_logits2[len_chosen:]
         rejected_logits3 = all_logits3[len_chosen:]
-        print(rejected_logits1)
-        print(rejected_logits2)
-        print(rejected_logits3)
+
+        rejected_logit = [rejected_logits1, rejected_logits2, rejected_logits3]
+        stacked_tensors_logit = torch.stack(rejected_logit)
+        mean_tensor_logit = stacked_tensors_logit.mean(dim=0)
         
-        rejected_logits = np.mean(rejected_logits1, rejected_logits2, rejected_logits3)
+        rejected_logits = mean_tensor_logit  
 
         return (chosen_logps, rejected_logps, chosen_logits, rejected_logits)
 
