@@ -615,6 +615,7 @@ class DPOTrainer(Trainer):
         device: Optional[torch.device] = None,
     ) -> Dict[str, torch.LongTensor]:
         print(batch)
+        print("chosen_labels :", batch['chosen_labels'])
         concatenated_batch = {}
 
         if is_encoder_decoder:
