@@ -541,7 +541,7 @@ class DPOTrainer(Trainer):
                 prompt_tokens[k] = v[:prompt_len_input_ids]
     
             num_diff_tokens = sum(
-                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens["prompt_input_ids"])]
+                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens1["prompt_input_ids"], rejected_tokens2["prompt_input_ids"], rejected_tokens3["prompt_input_ids"])]
             )
             num_diff_len1 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids1)
             num_diff_len2 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids2)
