@@ -540,13 +540,19 @@ class DPOTrainer(Trainer):
             for k, v in prompt_tokens.items():
                 prompt_tokens[k] = v[:prompt_len_input_ids]
     
-            num_diff_tokens = sum(
-                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens1["prompt_input_ids"], rejected_tokens2["prompt_input_ids"], rejected_tokens3["prompt_input_ids"])]
+            num_diff_tokens1 = sum(
+                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens1["prompt_input_ids"])]
+            )
+            num_diff_tokens2 = sum(
+                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens2["prompt_input_ids"])]
+            )
+            num_diff_tokens3 = sum(
+                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens3["prompt_input_ids"])]
             )
             num_diff_len1 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids1)
             num_diff_len2 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids2)
             num_diff_len3 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids3)
-            if num_diff_tokens > 1 or num_diff_len1 > 1 or num_diff_len2 > 1 or num_diff_len3 > 1 :
+            if num_diff_tokens1 > 1 or num_diff_tokens2 > 1 or num_diff_tokens3 > 1 or num_diff_len1 > 1 or num_diff_len2 > 1 or num_diff_len3 > 1 :
                 raise ValueError(
                     "Chosen and rejected prompt_input_ids might only differ on the "
                     "last token due to tokenizer merge ops."
