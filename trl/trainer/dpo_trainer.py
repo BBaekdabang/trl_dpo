@@ -988,12 +988,17 @@ class DPOTrainer(Trainer):
         print(rejected_logps1)
         print(rejected_logps2)
         print(rejected_logps3)
-        rejected_logps = np.mean(rejected_logps1, rejected_logps2, rejected_logps3)
+        
+        rejected_logps = torch.mean(rejected_logps1, rejected_logps2, rejected_logps3)
 
         chosen_logits = all_logits1[:len_chosen]
         rejected_logits1 = all_logits1[len_chosen:]
         rejected_logits2 = all_logits2[len_chosen:]
         rejected_logits3 = all_logits3[len_chosen:]
+        print(rejected_logits1)
+        print(rejected_logits2)
+        print(rejected_logits3)
+        
         rejected_logits = np.mean(rejected_logits1, rejected_logits2, rejected_logits3)
 
         return (chosen_logps, rejected_logps, chosen_logits, rejected_logits)
