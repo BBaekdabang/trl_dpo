@@ -763,7 +763,6 @@ class DPOTrainer(Trainer):
                 concatenated_batch[concatenated_key2] = pad_to_length(batch[k], max_length, pad_value=pad_value)
                 concatenated_batch[concatenated_key3] = pad_to_length(batch[k], max_length, pad_value=pad_value)
 
-        print(concatenated_batch)
         for k in batch:
             if k.startswith("rejected") and isinstance(batch[k], torch.Tensor):
                 
@@ -987,6 +986,8 @@ class DPOTrainer(Trainer):
         rejected_logps2 = all_logps2[len_chosen:]
         rejected_logps3 = all_logps3[len_chosen:]
         print(rejected_logps1)
+        print(rejected_logps2)
+        print(rejected_logps3)
         rejected_logps = np.mean(rejected_logps1, rejected_logps2, rejected_logps3)
 
         chosen_logits = all_logits1[:len_chosen]
