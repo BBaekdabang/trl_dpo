@@ -614,14 +614,14 @@ class DPOTrainer(Trainer):
         padding_value: int = 0,
         device: Optional[torch.device] = None,
     ) -> Dict[str, torch.LongTensor]:
-
+        print(batch)
         concatenated_batch = {}
 
         if is_encoder_decoder:
             max_length = max(batch["chosen_labels"].shape[1], batch["rejected1_labels"].shape[1], batch["rejected2_labels"].shape[1], batch["rejected3_labels"].shape[1])
         else:
             max_length = max(batch["chosen_input_ids"].shape[1], batch["rejected1_labels"].shape[1], batch["rejected2_labels"].shape[1], batch["rejected3_labels"].shape[1])
-        
+        print("length", max_length)
         for k in batch:
             if k.startswith("chosen") and isinstance(batch[k], torch.Tensor):
                 if "labels" in k or is_encoder_decoder:
