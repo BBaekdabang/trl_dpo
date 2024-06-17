@@ -493,6 +493,7 @@ class DPOTrainer(Trainer):
         )
 
     def tokenize_row(self, feature, model: Optional[Union[PreTrainedModel, nn.Module]] = None) -> Dict:
+
         batch = {}
         prompt = feature["prompt"]
         chosen = feature["chosen"]
@@ -510,59 +511,178 @@ class DPOTrainer(Trainer):
                 raise ValueError(f"chosen should be an str but got {type(chosen)}")
             chosen_tokens = self.build_tokenized_answer(prompt, chosen)
     
-            # Iterate over each rejected sample and process tokens
-            rejected_samples = [rejected1, rejected2, rejected3]
-            rejected_sequence_tokens_list = []
-            for i, rejected in enumerate(rejected_samples):
-                if not isinstance(rejected, str):
-                    raise ValueError(f"rejected{i+1} should be an str but got {type(rejected)}")
-                rejected_tokens = self.build_tokenized_answer(prompt, rejected)
-                rejected_sequence_tokens = {
-                    k: rejected_tokens[f"prompt_{k}"] + rejected_tokens[k] for k in ["input_ids", "attention_mask"]
-                }
-                rejected_sequence_tokens["labels"] = rejected_sequence_tokens["input_ids"][:]
-                rejected_sequence_tokens["labels"][: len(rejected_tokens["prompt_input_ids"])] = [
-                    self.label_pad_token_id
-                ] * len(rejected_tokens["prompt_input_ids"])
-                rejected_sequence_tokens_list.append(rejected_sequence_tokens)
-            
-            # Last prompt token might get merged with other tokens and should be included for consistency.
-            prompt_len_input_ids = min(
-                len(chosen_tokens["prompt_input_ids"]), len(rejected_tokens["prompt_input_ids"])
-            )
+            if not isinstance(rejected1, str) :
+                raise ValueError(f"rejected should be an str but got {type(rejected1)}")
+            rejected_tokens1 = self.build_tokenized_answer(prompt, rejected1)
+    
+            if not isinstance(rejected2, str) :
+                raise ValueError(f"rejected should be an str but got {type(rejected2)}")
+            rejected_tokens2 = self.build_tokenized_answer(prompt, rejected2)
+    
+            if not isinstance(rejected3, str) :
+                raise ValueError(f"rejected should be an str but got {type(rejected3)}")
+            rejected_tokens3 = self.build_tokenized_answer(prompt, rejected3)
+    
+            prompt_len_input_ids = len(prompt_tokens["prompt_input_ids"])
+    
+            chosen_prompt_len_input_ids = len(chosen_tokens["prompt_input_ids"])
+    
+            rejected_prompt_len_input_ids1 = len(rejected_tokens1["prompt_input_ids"])
+            prompt_len_input_ids1 = min(chosen_prompt_len_input_ids, rejected_prompt_len_input_ids1)
+    
+            rejected_prompt_len_input_ids2 = len(rejected_tokens2["prompt_input_ids"])
+            prompt_len_input_ids2 = min(chosen_prompt_len_input_ids, rejected_prompt_len_input_ids2)
+    
+            rejected_prompt_len_input_ids3 = len(rejected_tokens3["prompt_input_ids"])
+            prompt_len_input_ids3 = min(chosen_prompt_len_input_ids, rejected_prompt_len_input_ids3)
+    
+    
             for k, v in prompt_tokens.items():
                 prompt_tokens[k] = v[:prompt_len_input_ids]
     
+            num_diff_tokens = sum(
+                [a != b for a, b in zip(chosen_tokens["prompt_input_ids"], rejected_tokens["prompt_input_ids"])]
+            )
+            num_diff_len1 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids1)
+            num_diff_len2 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids2)
+            num_diff_len3 = abs(chosen_prompt_len_input_ids - rejected_prompt_len_input_ids3)
+            if num_diff_tokens > 1 or num_diff_len1 > 1 or num_diff_len2 > 1 or num_diff_len3 > 1 :
+                raise ValueError(
+                    "Chosen and rejected prompt_input_ids might only differ on the "
+                    "last token due to tokenizer merge ops."
+                )
+    
+            # add BOS token to head of prompt
+            prompt_tokens["prompt_input_ids"] = [self.tokenizer.bos_token_id] + prompt_tokens["prompt_input_ids"]
+            chosen_tokens["prompt_input_ids"] = [self.tokenizer.bos_token_id] + chosen_tokens["prompt_input_ids"]
+            rejected_tokens1["prompt_input_ids"] = [self.tokenizer.bos_token_id] + rejected_tokens1["prompt_input_ids"]
+            rejected_tokens2["prompt_input_ids"] = [self.tokenizer.bos_token_id] + rejected_tokens2["prompt_input_ids"]
+            rejected_tokens3["prompt_input_ids"] = [self.tokenizer.bos_token_id] + rejected_tokens3["prompt_input_ids"]
+    
+    
+            prompt_tokens["prompt_attention_mask"] = [1] + prompt_tokens["prompt_attention_mask"]
+            chosen_tokens["prompt_attention_mask"] = [1] + chosen_tokens["prompt_attention_mask"]
+            rejected_tokens1["prompt_attention_mask"] = [1] + rejected_tokens1["prompt_attention_mask"]
+            rejected_tokens2["prompt_attention_mask"] = [1] + rejected_tokens2["prompt_attention_mask"]
+            rejected_tokens3["prompt_attention_mask"] = [1] + rejected_tokens3["prompt_attention_mask"]
+    
+    
+            # add EOS token to end of answer
+            chosen_tokens["input_ids"].append(self.tokenizer.eos_token_id)
+            chosen_tokens["attention_mask"].append(1)
+    
+            rejected_tokens1["input_ids"].append(self.tokenizer.eos_token_id)
+            rejected_tokens2["input_ids"].append(self.tokenizer.eos_token_id)
+            rejected_tokens3["input_ids"].append(self.tokenizer.eos_token_id)
+    
+            rejected_tokens1["attention_mask"].append(1)
+            rejected_tokens2["attention_mask"].append(1)
+            rejected_tokens3["attention_mask"].append(1)
+    
+    
+            longer_response_length = max(len(chosen_tokens["input_ids"]), len(rejected_tokens1["input_ids"]), len(rejected_tokens2["input_ids"]), len(rejected_tokens3["input_ids"]))
+    
+    
+            # if combined sequence is too long, truncate the prompt
+            for answer_tokens in [chosen_tokens, rejected_tokens1, rejected_tokens2, rejected_tokens3, prompt_tokens]:
+                if len(answer_tokens["prompt_input_ids"]) + longer_response_length > self.max_length:
+                    if self.truncation_mode == "keep_start":
+                        for k in ["prompt_input_ids", "prompt_attention_mask"]:
+                            answer_tokens[k] = answer_tokens[k][: self.max_prompt_length]
+                    elif self.truncation_mode == "keep_end":
+                        for k in ["prompt_input_ids", "prompt_attention_mask"]:
+                            answer_tokens[k] = answer_tokens[k][-self.max_prompt_length :]
+                    else:
+                        raise ValueError(f"Unknown truncation mode: {self.truncation_mode}")
+    
+             # if that's still too long, truncate the response
+            for answer_tokens in [chosen_tokens, rejected_tokens1, rejected_tokens2, rejected_tokens3]:
+                if len(answer_tokens["prompt_input_ids"]) + longer_response_length > self.max_length:
+                    for k in ["input_ids", "attention_mask"]:
+                        answer_tokens[k] = answer_tokens[k][: self.max_length - self.max_prompt_length]
+    
+    
+            # Create labels
+            chosen_sequence_tokens = {
+                k: chosen_tokens[f"prompt_{k}"] + chosen_tokens[k] for k in ["input_ids", "attention_mask"]
+            }
+            rejected_sequence_tokens1 = {
+                k: rejected_tokens1[f"prompt_{k}"] + rejected_tokens1[k] for k in ["input_ids", "attention_mask"]
+            }
+            rejected_sequence_tokens2 = {
+                k: rejected_tokens2[f"prompt_{k}"] + rejected_tokens2[k] for k in ["input_ids", "attention_mask"]
+            }
+            rejected_sequence_tokens3 = {
+                k: rejected_tokens3[f"prompt_{k}"] + rejected_tokens3[k] for k in ["input_ids", "attention_mask"]
+            }
+    
+            chosen_sequence_tokens["labels"] = chosen_sequence_tokens["input_ids"][:]
+            chosen_sequence_tokens["labels"][: len(chosen_tokens["prompt_input_ids"])] = [
+                self.label_pad_token_id
+            ] * len(chosen_tokens["prompt_input_ids"])
+    
+            rejected_sequence_tokens1["labels"] = rejected_sequence_tokens1["input_ids"][:]
+            rejected_sequence_tokens1["labels"][: len(rejected_tokens1["prompt_input_ids"])] = [
+                self.label_pad_token_id
+            ] * len(rejected_tokens1["prompt_input_ids"])
+    
+            rejected_sequence_tokens2["labels"] = rejected_sequence_tokens2["input_ids"][:]
+            rejected_sequence_tokens2["labels"][: len(rejected_tokens2["prompt_input_ids"])] = [
+                self.label_pad_token_id
+            ] * len(rejected_tokens2["prompt_input_ids"])
+    
+            rejected_sequence_tokens3["labels"] = rejected_sequence_tokens3["input_ids"][:]
+            rejected_sequence_tokens3["labels"][: len(rejected_tokens3["prompt_input_ids"])] = [
+                self.label_pad_token_id
+            ] * len(rejected_tokens3["prompt_input_ids"])
+    
+    
             for k, toks in {
-                "chosen_": chosen_tokens,
-                f"rejected1_": rejected_sequence_tokens_list[0],
-                f"rejected2_": rejected_sequence_tokens_list[1],
-                f"rejected3_": rejected_sequence_tokens_list[2],
+                "chosen_": chosen_sequence_tokens,
+                "rejected_1": rejected_sequence_tokens1,
+                "rejected_2": rejected_sequence_tokens2,
+                "rejected_3": rejected_sequence_tokens3,
                 "": prompt_tokens,
             }.items():
                 for type_key, tokens in toks.items():
                     if type_key == "token_type_ids":
                         continue
                     batch[f"{k}{type_key}"] = tokens
+    
+    
         else:
             chosen_tokens = self.tokenizer(
                 chosen, truncation=True, max_length=self.max_target_length, add_special_tokens=True
             )
-            rejected_tokens = self.tokenizer(
-                rejected, truncation=True, max_length=self.max_target_length, add_special_tokens=True
+            rejected_tokens1 = self.tokenizer(
+                rejected1, truncation=True, max_length=self.max_target_length, add_special_tokens=True
+            )
+            rejected_tokens2 = self.tokenizer(
+                rejected2, truncation=True, max_length=self.max_target_length, add_special_tokens=True
+            )
+            rejected_tokens3 = self.tokenizer(
+                rejected3, truncation=True, max_length=self.max_target_length, add_special_tokens=True
             )
             prompt_tokens = self.tokenizer(
                 prompt, truncation=True, max_length=self.max_prompt_length, add_special_tokens=True
             )
-            
+    
             batch["chosen_labels"] = chosen_tokens["input_ids"]
-            batch["rejected_labels"] = rejected_tokens["input_ids"]
+            batch["rejected1_labels"] = rejected_tokens1["input_ids"]
+            batch["rejected2_labels"] = rejected_tokens2["input_ids"]
+            batch["rejected3_labels"] = rejected_tokens3["input_ids"]
             batch["prompt_input_ids"] = prompt_tokens["input_ids"]
             batch["prompt_attention_mask"] = prompt_tokens["attention_mask"]
     
             if model is not None and hasattr(model, "prepare_decoder_input_ids_from_labels"):
-                batch["rejected_decoder_input_ids"] = model.prepare_decoder_input_ids_from_labels(
-                    labels=torch.tensor(batch["rejected_labels"])
+                batch["rejected1_decoder_input_ids"] = model.prepare_decoder_input_ids_from_labels(
+                    labels=torch.tensor(batch["rejected1_labels"])
+                )
+                batch["rejected2_decoder_input_ids"] = model.prepare_decoder_input_ids_from_labels(
+                    labels=torch.tensor(batch["rejected2_labels"])
+                )
+                batch["rejected3_decoder_input_ids"] = model.prepare_decoder_input_ids_from_labels(
+                    labels=torch.tensor(batch["rejected3_labels"])
                 )
                 batch["chosen_decoder_input_ids"] = model.prepare_decoder_input_ids_from_labels(
                     labels=torch.tensor(batch["chosen_labels"])
