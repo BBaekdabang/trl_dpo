@@ -630,11 +630,14 @@ class DPOTrainer(Trainer):
                     pad_value = padding_value
                 elif k.endswith("_attention_mask"):
                     pad_value = 0
-                concatenated_key = k.replace("chosen", "concatenated")
-                concatenated_batch[concatenated_key] = pad_to_length(batch[k], max_length, pad_value=pad_value)
-        print(concatenated_batch)
+                concatenated_key1 = k.replace("chosen", "concatenated1")
+                concatenated_key2 = k.replace("chosen", "concatenated2")
+                concatenated_key3 = k.replace("chosen", "concatenated3")
+                concatenated_batch[concatenated_key1] = pad_to_length(batch[k], max_length, pad_value=pad_value)
+                concatenated_batch[concatenated_key2] = pad_to_length(batch[k], max_length, pad_value=pad_value)
+                concatenated_batch[concatenated_key3] = pad_to_length(batch[k], max_length, pad_value=pad_value)
+                              
         for k in batch:
-            
             if k.startswith("rejected") and isinstance(batch[k], torch.Tensor):
                 print(k)
                 if "labels" in k or is_encoder_decoder:
@@ -644,7 +647,7 @@ class DPOTrainer(Trainer):
                 elif k.endswith("_attention_mask"):
                     pad_value = 0
                 if 'rejected1' in k :
-                    concatenated_key = k.replace("rejected1", "concatenated")
+                    concatenated_key = k.replace("rejected1", "concatenated1")
                     concatenated_batch[concatenated_key] = torch.cat(
                         (
                             concatenated_batch[concatenated_key],
@@ -653,7 +656,7 @@ class DPOTrainer(Trainer):
                         dim=0,
                     ).to(device=device)
                 elif 'rejected2' in k :
-                    concatenated_key = k.replace("rejected2", "concatenated")
+                    concatenated_key = k.replace("rejected2", "concatenated2")
                     concatenated_batch[concatenated_key] = torch.cat(
                         (
                             concatenated_batch[concatenated_key],
@@ -662,7 +665,7 @@ class DPOTrainer(Trainer):
                         dim=0,
                     ).to(device=device)
                 elif 'rejected3' in k :
-                    concatenated_key = k.replace("rejected3", "concatenated")
+                    concatenated_key = k.replace("rejected3", "concatenated3")
                     concatenated_batch[concatenated_key] = torch.cat(
                         (
                             concatenated_batch[concatenated_key],
@@ -786,34 +789,83 @@ class DPOTrainer(Trainer):
         )
         len_chosen = batch["chosen_labels"].shape[0]
 
-        model_kwargs = (
+        model_kwargs1 = (
             {
-                "labels": concatenated_batch["concatenated_labels"],
+                "labels": concatenated_batch["concatenated1_labels"],
                 "decoder_input_ids": concatenated_batch.pop("concatenated_decoder_input_ids", None),
             }
             if self.is_encoder_decoder
             else {}
         )
-        all_logits = model(
-            concatenated_batch["concatenated_input_ids"],
-            attention_mask=concatenated_batch["concatenated_attention_mask"],
+        model_kwargs2 = (
+            {
+                "labels": concatenated_batch["concatenated2_labels"],
+                "decoder_input_ids": concatenated_batch.pop("concatenated_decoder_input_ids", None),
+            }
+            if self.is_encoder_decoder
+            else {}
+        )
+        model_kwargs3 = (
+            {
+                "labels": concatenated_batch["concatenated3_labels"],
+                "decoder_input_ids": concatenated_batch.pop("concatenated_decoder_input_ids", None),
+            }
+            if self.is_encoder_decoder
+            else {}
+        )
+        
+        all_logits1 = model(
+            concatenated_batch["concatenated1_input_ids"],
+            attention_mask=concatenated_batch["concatenated1_attention_mask"],
             use_cache=False,
-            **model_kwargs,
+            **model_kwargs1,
+        ).logits
+        all_logits2 = model(
+            concatenated_batch["concatenated2_input_ids"],
+            attention_mask=concatenated_batch["concatenated2_attention_mask"],
+            use_cache=False,
+            **model_kwargs2,
+        ).logits
+        all_logits3 = model(
+            concatenated_batch["concatenated3_input_ids"],
+            attention_mask=concatenated_batch["concatenated3_attention_mask"],
+            use_cache=False,
+            **model_kwargs3,
         ).logits
 
-        all_logps = self.get_batch_logps(
-            all_logits,
-            concatenated_batch["concatenated_labels"],
+        all_logps1 = self.get_batch_logps(
+            all_logits1,
+            concatenated_batch["concatenated1_labels"],
+            average_log_prob=self.loss_type == "ipo",
+            is_encoder_decoder=self.is_encoder_decoder,
+            label_pad_token_id=self.label_pad_token_id,
+        )
+        all_logps2 = self.get_batch_logps(
+            all_logits2,
+            concatenated_batch["concatenated2_labels"],
+            average_log_prob=self.loss_type == "ipo",
+            is_encoder_decoder=self.is_encoder_decoder,
+            label_pad_token_id=self.label_pad_token_id,
+        )
+        all_logps3 = self.get_batch_logps(
+            all_logits3,
+            concatenated_batch["concatenated3_labels"],
             average_log_prob=self.loss_type == "ipo",
             is_encoder_decoder=self.is_encoder_decoder,
             label_pad_token_id=self.label_pad_token_id,
         )
 
-        chosen_logps = all_logps[:len_chosen]
-        rejected_logps = all_logps[len_chosen:]
+        chosen_logps = all_logps1[:len_chosen]
+        rejected_logps1 = all_logps1[len_chosen:]
+        rejected_logps2 = all_logps2[len_chosen:]
+        rejected_logps3 = all_logps3[len_chosen:]
+        rejected_logps = np.mean(rejected_logps1, rejected_logps2, rejected_logps3)
 
-        chosen_logits = all_logits[:len_chosen]
-        rejected_logits = all_logits[len_chosen:]
+        chosen_logits = all_logits1[:len_chosen]
+        rejected_logits1 = all_logits1[len_chosen:]
+        rejected_logits2 = all_logits2[len_chosen:]
+        rejected_logits3 = all_logits3[len_chosen:]
+        rejected_logits = np.mean(rejected_logits1, rejected_logits2, rejected_logits3)
 
         return (chosen_logps, rejected_logps, chosen_logits, rejected_logits)
 
