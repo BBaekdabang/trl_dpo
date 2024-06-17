@@ -645,9 +645,9 @@ class DPOTrainer(Trainer):
     
             for k, toks in {
                 "chosen_": chosen_sequence_tokens,
-                "rejected_1": rejected_sequence_tokens1,
-                "rejected_2": rejected_sequence_tokens2,
-                "rejected_3": rejected_sequence_tokens3,
+                "rejected1_": rejected_sequence_tokens1,
+                "rejected2_": rejected_sequence_tokens2,
+                "rejected3_": rejected_sequence_tokens3,
                 "": prompt_tokens,
             }.items():
                 for type_key, tokens in toks.items():
