@@ -986,7 +986,9 @@ class DPOTrainer(Trainer):
         rejected_logps2 = all_logps2[len_chosen:]
         rejected_logps3 = all_logps3[len_chosen:]
 
-        rejected_logp = [rejected_logps1, rejected_logps2, rejected_logps3]
+        weight = [0.66524096, 0.24472847, 0.09003057]
+        
+        rejected_logp = [weight[2] * rejected_logps1, weight[1] *rejected_logps2, weight[0] *rejected_logps3]
         stacked_tensors_logp = torch.stack(rejected_logp)
         mean_tensor_logp = stacked_tensors_logp.mean(dim=0)
         
@@ -997,7 +999,7 @@ class DPOTrainer(Trainer):
         rejected_logits2 = all_logits2[len_chosen:]
         rejected_logits3 = all_logits3[len_chosen:]
 
-        rejected_logit = [rejected_logits1, rejected_logits2, rejected_logits3]
+        rejected_logit = [weight[2] *rejected_logits1, weight[1] *rejected_logits2, weight[0] *rejected_logits3]
         stacked_tensors_logit = torch.stack(rejected_logit)
         mean_tensor_logit = stacked_tensors_logit.mean(dim=0)
         
